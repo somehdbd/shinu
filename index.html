@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cashbook</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js"></script>
+<script>
+/* ============================================================
+   YOUR SUPABASE SETTINGS — paste them here
+   Supabase dashboard > Project Settings > API
+   (use the "anon public" key, never the "service_role" key)
+   ============================================================ */
+window.CASHBOOK_CONFIG = {
+  SUPABASE_URL: "https://waunjboreduelvnalgrw.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndhdW5qYm9yZWR1ZWx2bmFsZ3J3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNjc0NzEsImV4cCI6MjEwNTg0MzQ3MX0.9oLryvcrIV-A0Lsbu7Tx7uT-O8X-cgUgfH-QU-dTRuQ"
+};
+</script>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#F3F5F2; --surface:#FFFFFF; --sunk:#E9EDE8; --line:#D5DCD5;
+  --ink:#18221E; --muted:#5B6862; --faint:#8A968F;
+  --accent:#2F3FB8; --accent-ink:#FFFFFF; --accent-soft:#E4E7FA;
+  --in:#1D7446; --in-soft:#DDF0E4; --out:#B03F2B; --out-soft:#F8E1DB;
+  --shadow:0 1px 2px rgba(24,34,30,.06),0 4px 16px rgba(24,34,30,.05);
+  --display:"Bricolage Grotesque",ui-sans-serif,system-ui,sans-serif;
+  --body:"IBM Plex Sans",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    color-scheme:dark;
+    --bg:#111614; --surface:#18201D; --sunk:#1F2925; --line:#2C3833;
+    --ink:#E6EDE9; --muted:#9DABA4; --faint:#6F7D76;
+    --accent:#8F9BFF; --accent-ink:#0F1330; --accent-soft:#252B52;
+    --in:#5FCB8E; --in-soft:#173826; --out:#F08A72; --out-soft:#44231B;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);padding-inline:16px;padding-block:calc(20px + env(safe-area-inset-top,0px)) calc(48px + env(safe-area-inset-bottom,0px))}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:28px;font-weight:700}
+h2{font-size:17px;font-weight:700}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{opacity:.6;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.brand small{color:var(--muted);font-size:13px}
+.monthnav{display:flex;align-items:center;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px}
+.monthnav button{border:0;background:none;width:34px;height:34px;border-radius:50%;font-size:18px;color:var(--muted)}
+.monthnav button:hover{background:var(--sunk);color:var(--ink)}
+.monthnav .m{min-width:132px;text-align:center;font-weight:600}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ghost{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-size:13.5px}
+.ghost:hover{border-color:var(--muted)}
+.linkish{border:0;background:none;color:var(--accent);padding:0;font-size:13.5px;text-decoration:underline;text-underline-offset:2px}
+.account{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);flex-wrap:wrap;justify-content:flex-end}
+.account b{color:var(--ink);font-weight:500;overflow-wrap:anywhere}
+
+.notice{font-size:13.5px;background:var(--accent-soft);color:var(--ink);border-radius:10px;padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.notice b{font-weight:600}
+.notice.bad{background:var(--out-soft)}
+
+.summary{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.summary > div{padding:16px 20px;display:flex;flex-direction:column;gap:4px}
+.summary > div + div{border-left:1px solid var(--line)}
+.summary .v{font-size:26px;font-weight:500;letter-spacing:-.02em}
+.summary .sub{font-size:12.5px;color:var(--muted)}
+.v.in{color:var(--in)} .v.out{color:var(--out)}
+@media (max-width:640px){
+  .summary{grid-template-columns:1fr}
+  .summary > div + div{border-left:0;border-top:1px solid var(--line)}
+}
+
+.grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+@media (max-width:880px){.grid{grid-template-columns:1fr}}
+.side{display:flex;flex-direction:column;gap:20px;min-width:0}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:14px}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--sunk);border-radius:10px;padding:3px;gap:3px}
+.seg button{border:0;background:none;border-radius:8px;padding:8px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"].in{background:var(--surface);color:var(--in);box-shadow:var(--shadow)}
+.seg button[aria-pressed="true"].out{background:var(--surface);color:var(--out);box-shadow:var(--shadow)}
+.seg button[aria-pressed="true"].plain{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:13px;color:var(--muted);font-weight:500}
+.field input,.field select{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 11px}
+.field input:focus{border-color:var(--accent);outline:none}
+.amount-wrap{position:relative}
+.amount-wrap span{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-family:var(--mono)}
+.amount-wrap input{padding-left:44px;font-family:var(--mono);font-size:20px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12.5px;color:var(--muted)}
+.chip:hover{color:var(--ink);border-color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.primary{border:0;background:var(--accent);color:var(--accent-ink);border-radius:10px;padding:11px;font-weight:600}
+.primary:hover:not(:disabled){filter:brightness(1.08)}
+.formfoot{display:flex;gap:8px}
+.formfoot .primary{flex:1}
+.err{color:var(--out);font-size:13px}
+.ok{color:var(--in);font-size:13px}
+
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13.5px}
+.bar-row .track{grid-column:1/-1;height:6px;background:var(--sunk);border-radius:3px;overflow:hidden}
+.bar-row .fill{height:100%;background:var(--out);border-radius:3px}
+.empty{color:var(--faint);font-size:13.5px}
+
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;gap:14px;font-size:12.5px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+.listhead{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:7px 11px;width:180px;max-width:100%}
+.day{display:flex;flex-direction:column}
+.dayhead{display:flex;justify-content:space-between;padding:10px 2px 6px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted);font-weight:600}
+.tx{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;padding:10px 2px;border-bottom:1px dashed var(--line)}
+.tx:last-child{border-bottom:0}
+.tx:hover{background:color-mix(in srgb,var(--sunk) 50%,transparent)}
+.tag{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-family:var(--mono);font-weight:500;font-size:15px}
+.tag.in{background:var(--in-soft);color:var(--in)} .tag.out{background:var(--out-soft);color:var(--out)}
+.tx .what{min-width:0}
+.tx .cat{font-weight:600;font-size:14.5px}
+.tx .note{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx .amt{font-size:15px;text-align:right}
+.tx .amt.in{color:var(--in)}
+.acts{display:flex;gap:2px}
+.acts button{border:0;background:none;color:var(--faint);border-radius:6px;padding:4px 7px;font-size:12.5px}
+.acts button:hover{background:var(--sunk);color:var(--ink)}
+.acts button.danger{color:var(--out)}
+.tx.example{opacity:.72}
+.badge{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--line);border-radius:4px;padding:0 5px;color:var(--muted);margin-left:6px;font-weight:600}
+@media (max-width:480px){ .tx{grid-template-columns:auto 1fr auto} .acts{grid-column:2/-1;justify-content:flex-end} }
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-size:13.5px;box-shadow:var(--shadow);z-index:10;max-width:calc(100% - 32px);text-align:center}
+
+/* auth */
+.authwrap{max-width:400px;margin:6vh auto 0;display:flex;flex-direction:column;gap:18px}
+.authwrap .panel{padding:24px;box-shadow:var(--shadow)}
+.authwrap h1{font-size:34px}
+.authwrap p{margin:0;color:var(--muted)}
+.center{text-align:center}
+.loading{color:var(--muted);text-align:center;margin-top:20vh}
+code{font-family:var(--mono);font-size:13px;background:var(--sunk);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+
+<div id="loadingView" class="loading">Loading Cashbook…</div>
+
+<!-- Setup needed -->
+<div id="setupView" class="authwrap" hidden>
+  <h1>Cashbook</h1>
+  <div class="panel">
+    <h2 id="setupTitle">Connect your Supabase project</h2>
+    <p id="setupMsg">Open <code>index.html</code>, find <code>CASHBOOK_CONFIG</code> near the top, and paste your Project URL and anon public key from Supabase → Project Settings → API. Then redeploy.</p>
+  </div>
+</div>
+
+<!-- Sign in / create account -->
+<div id="authView" class="authwrap" hidden>
+  <div>
+    <h1>Cashbook</h1>
+    <p>Your income and expenses, on every device.</p>
+  </div>
+  <form class="panel" id="authForm" novalidate>
+    <div class="seg" role="group" aria-label="Sign in or create account">
+      <button type="button" class="plain" id="modeSignIn" aria-pressed="true">Sign in</button>
+      <button type="button" class="plain" id="modeSignUp" aria-pressed="false">Create account</button>
+    </div>
+    <div class="field"><label for="authEmail">Email</label><input id="authEmail" type="email" autocomplete="email" required></div>
+    <div class="field" id="pwField"><label for="authPass">Password</label><input id="authPass" type="password" autocomplete="current-password" minlength="6" required></div>
+    <div class="err" id="authErr" role="alert"></div>
+    <div class="ok" id="authOk" role="status"></div>
+    <button type="submit" class="primary" id="authSubmit">Sign in</button>
+    <button type="button" class="linkish" id="forgotBtn" style="align-self:center">Forgot password?</button>
+  </form>
+</div>
+
+<!-- Set a new password (after reset link) -->
+<div id="recoveryView" class="authwrap" hidden>
+  <h1>Cashbook</h1>
+  <form class="panel" id="recoveryForm" novalidate>
+    <h2>Set a new password</h2>
+    <div class="field"><label for="newPass">New password</label><input id="newPass" type="password" autocomplete="new-password" minlength="6"></div>
+    <div class="err" id="recErr" role="alert"></div>
+    <button type="submit" class="primary" id="recSubmit">Save password</button>
+  </form>
+</div>
+
+<!-- App -->
+<div class="wrap" id="appView" hidden>
+  <header class="top">
+    <div class="brand">
+      <h1>Cashbook</h1>
+      <small id="saveState">Loading…</small>
+    </div>
+    <div class="monthnav" role="group" aria-label="Month">
+      <button id="prevM" aria-label="Previous month">‹</button>
+      <div class="m" id="monthLabel">—</div>
+      <button id="nextM" aria-label="Next month">›</button>
+    </div>
+    <div class="account"><span>Signed in as <b id="userEmail"></b></span><button class="ghost" id="signOutBtn" type="button">Sign out</button></div>
+  </header>
+
+  <div class="tools">
+    <label class="label" for="currency">Currency</label>
+    <select id="currency" class="ghost">
+      <option value="INR">₹ INR</option>
+      <option value="AED">AED</option>
+      <option value="USD">$ USD</option>
+      <option value="EUR">€ EUR</option>
+      <option value="GBP">£ GBP</option>
+      <option value="SAR">SAR</option>
+    </select>
+    <button id="importBtn" class="ghost" type="button">Import CSV</button>
+    <input id="importFile" type="file" accept=".csv,text/csv" hidden>
+    <button id="exportBtn" class="ghost" type="button">Export CSV</button>
+  </div>
+
+  <div id="importPanel" class="notice" hidden>
+    <span id="importMsg"></span>
+    <span style="display:flex;gap:8px;margin-left:auto">
+      <button id="importGo" class="primary" type="button" style="padding:7px 14px">Import</button>
+      <button id="importCancel" class="ghost" type="button">Cancel</button>
+    </span>
+  </div>
+
+  <div id="loadErr" class="notice bad" hidden></div>
+
+  <div id="exampleNote" class="notice" hidden>
+    <span><b>These are example entries.</b> Add your first income or expense and they disappear.</span>
+  </div>
+
+  <section class="summary" aria-label="Month summary">
+    <div><span class="label">Income</span><span class="v in num" id="sumIn">0</span><span class="sub" id="cntIn">0 entries</span></div>
+    <div><span class="label">Expenses</span><span class="v out num" id="sumOut">0</span><span class="sub" id="cntOut">0 entries</span></div>
+    <div><span class="label">Net balance</span><span class="v num" id="sumNet">0</span><span class="sub" id="rate">—</span></div>
+  </section>
+
+  <div class="grid">
+    <div class="side">
+      <form class="panel" id="txForm" novalidate>
+        <h2 id="formTitle">Add entry</h2>
+        <div class="seg" role="group" aria-label="Entry type">
+          <button type="button" class="out" id="typeOut" aria-pressed="true">Expense</button>
+          <button type="button" class="in" id="typeIn" aria-pressed="false">Income</button>
+        </div>
+        <div class="field">
+          <label for="amount">Amount</label>
+          <div class="amount-wrap"><span id="curSym">₹</span><input id="amount" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
+        </div>
+        <div class="field">
+          <label for="category">Category</label>
+          <input id="category" list="catList" autocomplete="off" placeholder="Pick or type a new one">
+          <datalist id="catList"></datalist>
+          <div class="chips" id="catChips"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="date">Date</label><input id="date" type="date"></div>
+          <div class="field"><label for="method">Paid via</label>
+            <select id="method"><option>Cash</option><option>UPI</option><option>Card</option><option>Bank transfer</option><option>Cheque</option><option>Other</option></select>
+          </div>
+        </div>
+        <div class="field"><label for="note">Note <span style="color:var(--faint)">(optional)</span></label><input id="note" autocomplete="off" placeholder="e.g. Monthly rent, Client invoice #104"></div>
+        <div class="err" id="formErr" role="alert"></div>
+        <div class="formfoot">
+          <button type="submit" class="primary" id="submitBtn">Add expense</button>
+          <button type="button" class="ghost" id="cancelEdit" hidden>Cancel</button>
+        </div>
+      </form>
+
+      <section class="panel">
+        <h2>Where the money went</h2>
+        <div class="bars" id="breakdown"></div>
+      </section>
+    </div>
+
+    <div class="side">
+      <section class="panel chart">
+        <div class="listhead">
+          <h2>Last 6 months</h2>
+          <div class="legend"><span><i style="background:var(--in)"></i>Income</span><span><i style="background:var(--out)"></i>Expenses</span></div>
+        </div>
+        <div id="chart"></div>
+      </section>
+
+      <section class="panel">
+        <div class="listhead">
+          <h2>Entries</h2>
+          <div class="filters">
+            <select id="filterType" class="ghost" aria-label="Show">
+              <option value="all">All</option><option value="in">Income</option><option value="out">Expenses</option>
+            </select>
+            <input id="search" class="search" type="search" placeholder="Search notes or categories" aria-label="Search">
+          </div>
+        </div>
+        <div id="list"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const CATS = {
+  out:["Food & groceries","Rent","Utilities","Transport","Shopping","Health","Education","Entertainment","Bills & EMI","Other"],
+  in:["Salary","Business","Freelance","Interest","Rent received","Gift","Refund","Other"]
+};
+const SYMBOL = {INR:"₹",AED:"AED",USD:"$",EUR:"€",GBP:"£",SAR:"SAR"};
+const LOCALE = {INR:"en-IN",AED:"en-AE",USD:"en-US",EUR:"en-IE",GBP:"en-GB",SAR:"en-SA"};
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,"0");
+const todayStr = () => { const d=new Date(); return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); };
+const monthKey = s => s.slice(0,7);
+const addMonths = (key, n) => { let [y,m]=key.split("-").map(Number); m+=n; while(m<1){m+=12;y--} while(m>12){m-=12;y++} return y+"-"+pad(m); };
+const monthName = (key, short) => { const [y,m]=key.split("-").map(Number); return new Date(y,m-1,1).toLocaleDateString(undefined,{month:short?"short":"long",year:short?undefined:"numeric"}); };
+const tmpId = () => "ex"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+// ---------- views ----------
+const VIEWS = ["loadingView","setupView","authView","recoveryView","appView"];
+function show(v){ VIEWS.forEach(id => $(id).hidden = id!==v); }
+
+// ---------- state ----------
+let sb = null, user = null;
+let entries = [];            // flat list of the user's entries
+let currency = "INR";
+let viewMonth = monthKey(todayStr());
+let formType = "out";
+let editing = null;          // entry being edited
+let busy = false;
+let lastLoad = 0;
+
+const fromRow = r => ({id:r.id,type:r.type,amount:Number(r.amount),category:r.category,date:String(r.date).slice(0,10),method:r.method||"",note:r.note||"",createdAt:Date.parse(r.created_at)||0});
+const toRow = e => ({type:e.type,amount:e.amount,category:e.category,date:e.date,method:e.method||"",note:e.note||""});
+
+function monthsOf(list){ const m={}; for(const e of list) (m[monthKey(e.date)]=m[monthKey(e.date)]||[]).push(e); return m; }
+function exampleData(){
+  const k = monthKey(todayStr()), p = addMonths(k,-1), p2 = addMonths(k,-2);
+  const d = Math.max(1, Math.min(28, new Date().getDate()));
+  const E = (type,amount,category,day,note,method,m) => ({id:tmpId(),type,amount,category,date:(m||k)+"-"+pad(Math.min(day,m?28:d)),note,method,example:true});
+  return [
+    E("in",62000,"Salary",1,"Monthly salary","Bank transfer",p2),E("out",18000,"Rent",3,"Flat rent","UPI",p2),E("out",9400,"Food & groceries",12,"Groceries","UPI",p2),E("out",3100,"Utilities",15,"Electricity + internet","UPI",p2),E("out",6200,"Shopping",22,"Clothes","Card",p2),
+    E("in",62000,"Salary",1,"Monthly salary","Bank transfer",p),E("in",12500,"Freelance",18,"Logo design project","Bank transfer",p),E("out",18000,"Rent",3,"Flat rent","UPI",p),E("out",8700,"Food & groceries",9,"Groceries","UPI",p),E("out",2400,"Transport",20,"Fuel","Card",p),E("out",4500,"Health",25,"Dental check-up","Card",p),
+    E("in",62000,"Salary",1,"Monthly salary","Bank transfer"),E("out",18000,"Rent",3,"Flat rent","UPI"),E("out",2860,"Food & groceries",6,"Weekly groceries","UPI"),E("out",1450,"Transport",9,"Metro card top-up","UPI"),E("out",2999,"Utilities",12,"Electricity bill","UPI"),E("out",1800,"Entertainment",14,"Dinner & movie","Card"),E("in",8000,"Freelance",16,"Website edits for client","Bank transfer")
+  ];
+}
+let EXAMPLES = null;
+const hasReal = () => entries.length>0;
+const data = () => monthsOf(hasReal() ? entries : (EXAMPLES = EXAMPLES || exampleData()));
+
+function fmt(n, sign){
+  const s = new Intl.NumberFormat(LOCALE[currency]||"en-IN",{minimumFractionDigits:0,maximumFractionDigits:2}).format(Math.abs(n));
+  const sym = SYMBOL[currency]||currency;
+  return (sign && n<0 ? "−" : sign && n>0 ? "+" : "") + (sym.length>1 ? sym+" " : sym) + s;
+}
+function setSave(t){ $("saveState").textContent = t; }
+let tt; function toast(t){ const el=$("toast"); el.textContent=t; el.hidden=false; clearTimeout(tt); tt=setTimeout(()=>el.hidden=true,2600); }
+function friendly(err){
+  const m = (err && (err.message||err.error_description||String(err))) || "Something went wrong";
+  if(/Failed to fetch|NetworkError|network/i.test(m)) return "Can’t reach the server. Check your internet connection and try again.";
+  if(/JWT|expired|not authenticated/i.test(m)) return "Your session has ended. Sign out and sign in again.";
+  return m;
+}
+
+// ---------- data ----------
+async function loadAll(){
+  setSave("Loading…");
+  $("loadErr").hidden = true;
+  try{
+    const all=[]; const size=1000;
+    for(let from=0;;from+=size){
+      const {data:rows,error} = await sb.from("entries").select("*").order("date",{ascending:true}).order("created_at",{ascending:true}).range(from,from+size-1);
+      if(error) throw error;
+      all.push(...rows.map(fromRow));
+      if(rows.length<size) break;
+    }
+    entries = all;
+    const {data:s,error:e2} = await sb.from("settings").select("currency").eq("user_id",user.id).maybeSingle();
+    if(!e2 && s && s.currency) currency = s.currency;
+    lastLoad = Date.now();
+    setSave("All changes saved");
+  }catch(err){
+    $("loadErr").textContent = "Couldn’t load your entries: "+friendly(err);
+    $("loadErr").hidden = false;
+    setSave("Not loaded");
+  }
+  resetForm(); render();
+}
+
+// ---------- render ----------
+function totals(list){ let i=0,o=0,ci=0,co=0; for(const e of list){ if(e.type==="in"){i+=e.amount;ci++} else {o+=e.amount;co++} } return {i,o,ci,co}; }
+function render(){
+  const D = data();
+  $("exampleNote").hidden = hasReal() || !$("loadErr").hidden;
+  $("monthLabel").textContent = monthName(viewMonth);
+  $("curSym").textContent = SYMBOL[currency]||currency;
+  $("currency").value = currency;
+  const list = (D[viewMonth]||[]).slice();
+  const t = totals(list);
+  $("sumIn").textContent = fmt(t.i);
+  $("sumOut").textContent = fmt(t.o);
+  const net = t.i - t.o;
+  $("sumNet").textContent = fmt(net, true);
+  $("sumNet").className = "v num " + (net>0?"in":net<0?"out":"");
+  $("cntIn").textContent = t.ci + (t.ci===1?" entry":" entries");
+  $("cntOut").textContent = t.co + (t.co===1?" entry":" entries");
+  $("rate").textContent = t.i>0 ? (net>=0 ? "You saved "+Math.round(net/t.i*100)+"% of income" : "Spent "+Math.round(-net/t.i*100)+"% more than you earned") : (t.o>0 ? "No income recorded this month" : "Nothing recorded yet");
+  renderBreakdown(list, t.o);
+  renderChart(D);
+  renderList(list);
+}
+function renderBreakdown(list, total){
+  const box = $("breakdown"); box.textContent = "";
+  const by = {};
+  for(const e of list) if(e.type==="out") by[e.category]=(by[e.category]||0)+e.amount;
+  const rows = Object.entries(by).sort((a,b)=>b[1]-a[1]);
+  if(!rows.length){ box.innerHTML = '<div class="empty">No expenses this month.</div>'; return; }
+  for(const [c,v] of rows){
+    const r = document.createElement("div"); r.className="bar-row";
+    const pct = total ? v/total*100 : 0;
+    r.innerHTML = '<span></span><span class="num"></span><div class="track"><div class="fill"></div></div>';
+    r.children[0].textContent = c;
+    r.children[1].textContent = fmt(v) + "  ·  " + Math.round(pct) + "%";
+    r.querySelector(".fill").style.width = pct.toFixed(1)+"%";
+    box.appendChild(r);
+  }
+}
+function niceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p; }
+function short(n){ const a=Math.abs(n); if(a>=1e7&&currency==="INR") return (n/1e7).toFixed(a>=1e8?0:1).replace(/\.0$/,"")+"Cr"; if(a>=1e5&&currency==="INR") return (n/1e5).toFixed(a>=1e6?0:1).replace(/\.0$/,"")+"L"; if(a>=1e6) return (n/1e6).toFixed(1).replace(/\.0$/,"")+"M"; if(a>=1e3) return (n/1e3).toFixed(a>=1e4?0:1).replace(/\.0$/,"")+"k"; return String(Math.round(n)); }
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function renderChart(D){
+  const keys = []; for(let i=5;i>=0;i--) keys.push(addMonths(viewMonth,-i));
+  const vals = keys.map(k => totals(D[k]||[]));
+  const max = niceMax(Math.max(1,...vals.map(v=>Math.max(v.i,v.o))));
+  const W=Math.round(Math.max(300,Math.min(600,$("chart").clientWidth||600))),H=W<450?200:220,L=48,R=8,T=12,B=28, cw=(W-L-R)/6, bw=Math.min(22,cw/3.2);
+  const y = v => T + (H-T-B)*(1-v/max);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Income and expenses over the last six months">`;
+  for(let g=0; g<=4; g++){
+    const v = max*g/4, yy=y(v);
+    s += `<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"${g?' stroke-dasharray="2 4"':''}/>`;
+    s += `<text x="${L-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--faint)" font-family="var(--mono)">${short(v)}</text>`;
+  }
+  keys.forEach((k,i)=>{
+    const cx = L + cw*i + cw/2, v=vals[i], cur = k===viewMonth, base=y(0), hi=y(v.i), ho=y(v.o);
+    s += `<rect x="${cx-bw-2}" y="${hi}" width="${bw}" height="${Math.max(0,base-hi)}" rx="3" fill="var(--in)" opacity="${cur?1:.55}"><title>${esc(monthName(k))} income: ${esc(fmt(v.i))}</title></rect>`;
+    s += `<rect x="${cx+2}" y="${ho}" width="${bw}" height="${Math.max(0,base-ho)}" rx="3" fill="var(--out)" opacity="${cur?1:.55}"><title>${esc(monthName(k))} expenses: ${esc(fmt(v.o))}</title></rect>`;
+    s += `<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="12" fill="${cur?'var(--ink)':'var(--muted)'}" font-weight="${cur?600:400}" font-family="var(--body)">${esc(monthName(k,true))}</text>`;
+  });
+  $("chart").innerHTML = s + "</svg>";
+}
+function renderList(list){
+  const box = $("list"); box.textContent="";
+  const f = $("filterType").value, q = $("search").value.trim().toLowerCase();
+  const rows = list.filter(e => (f==="all"||e.type===f) && (!q || (e.category+" "+(e.note||"")+" "+(e.method||"")).toLowerCase().includes(q)))
+    .sort((a,b)=> b.date.localeCompare(a.date) || (b.createdAt||0)-(a.createdAt||0));
+  if(!rows.length){
+    const d=document.createElement("div"); d.className="empty"; d.style.padding="14px 2px";
+    d.textContent = list.length ? "No entries match this filter." : "No entries for "+monthName(viewMonth)+". Add one with the form.";
+    box.appendChild(d); return;
+  }
+  const groups = {};
+  for(const e of rows) (groups[e.date]=groups[e.date]||[]).push(e);
+  for(const d of Object.keys(groups)){
+    const g = document.createElement("div"); g.className="day";
+    const [yy,mm,dd]=d.split("-").map(Number);
+    const net = groups[d].reduce((s,e)=>s+(e.type==="in"?e.amount:-e.amount),0);
+    const h = document.createElement("div"); h.className="dayhead";
+    h.innerHTML = "<span></span><span class='num'></span>";
+    h.children[0].textContent = new Date(yy,mm-1,dd).toLocaleDateString(undefined,{weekday:"short",day:"numeric",month:"short"});
+    h.children[1].textContent = fmt(net,true);
+    g.appendChild(h);
+    for(const e of groups[d]){
+      const r = document.createElement("div"); r.className="tx"+(e.example?" example":"");
+      r.innerHTML = `<div class="tag ${e.type}">${e.type==="in"?"+":"−"}</div>
+        <div class="what"><div class="cat"></div><div class="note"></div></div>
+        <div class="amt num ${e.type}"></div>
+        <div class="acts">${e.example?"":'<button data-a="edit">Edit</button><button data-a="del">Delete</button>'}</div>`;
+      r.querySelector(".cat").textContent = e.category;
+      if(e.example){ const b=document.createElement("span"); b.className="badge"; b.textContent="Example"; r.querySelector(".cat").appendChild(b); }
+      r.querySelector(".note").textContent = [e.note, e.method].filter(Boolean).join(" · ");
+      r.querySelector(".amt").textContent = (e.type==="in"?"+":"−")+fmt(e.amount);
+      r.querySelector(".acts").addEventListener("click", ev => {
+        const b = ev.target.closest("button"); if(!b) return;
+        if(b.dataset.a==="edit") startEdit(e);
+        else if(b.dataset.a==="del"){
+          if(b.dataset.confirm){ removeEntry(e); }
+          else { b.dataset.confirm="1"; b.textContent="Confirm"; b.classList.add("danger"); setTimeout(()=>{ if(b.isConnected){ delete b.dataset.confirm; b.textContent="Delete"; b.classList.remove("danger"); } },3000); }
+        }
+      });
+      g.appendChild(r);
+    }
+    box.appendChild(g);
+  }
+}
+
+// ---------- form ----------
+function setType(t){
+  formType = t;
+  $("typeOut").setAttribute("aria-pressed", t==="out");
+  $("typeIn").setAttribute("aria-pressed", t==="in");
+  $("submitBtn").textContent = (editing?"Save ":"Add ") + (t==="in"?"income":"expense");
+  const used = new Set(entries.filter(e=>e.type===t).map(e=>e.category));
+  const all = [...new Set([...CATS[t], ...used])];
+  $("catList").textContent = ""; all.forEach(c=>{ const o=document.createElement("option"); o.value=c; $("catList").appendChild(o); });
+  const chips = $("catChips"); chips.textContent="";
+  CATS[t].slice(0,8).forEach(c=>{
+    const b=document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=c;
+    b.setAttribute("aria-pressed", $("category").value===c);
+    b.onclick=()=>{ $("category").value=c; syncChips(); };
+    chips.appendChild(b);
+  });
+}
+function syncChips(){ for(const b of $("catChips").children) b.setAttribute("aria-pressed", b.textContent===$("category").value); }
+$("category").addEventListener("input", syncChips);
+$("typeOut").onclick=()=>setType("out");
+$("typeIn").onclick=()=>setType("in");
+
+function resetForm(){
+  editing=null;
+  $("amount").value=""; $("category").value=""; $("note").value="";
+  const t=todayStr(); $("date").value = monthKey(t)===viewMonth ? t : viewMonth+"-01";
+  $("formTitle").textContent="Add entry"; $("cancelEdit").hidden=true; $("formErr").textContent="";
+  setType(formType);
+}
+function startEdit(e){
+  editing=e;
+  $("amount").value=e.amount; $("category").value=e.category; $("date").value=e.date; $("note").value=e.note||""; $("method").value=e.method||"Cash";
+  $("formTitle").textContent="Edit entry"; $("cancelEdit").hidden=false;
+  setType(e.type); syncChips();
+  $("txForm").scrollIntoView({behavior:"smooth",block:"start"}); $("amount").focus();
+}
+$("cancelEdit").onclick=resetForm;
+
+$("txForm").addEventListener("submit", async ev=>{
+  ev.preventDefault();
+  if(busy) return;
+  const amt = parseFloat(String($("amount").value).replace(/[, ]/g,""));
+  const cat = $("category").value.trim(), date=$("date").value;
+  if(!(amt>0)){ $("formErr").textContent="Enter an amount greater than zero."; $("amount").focus(); return; }
+  if(!cat){ $("formErr").textContent="Choose or type a category."; $("category").focus(); return; }
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ $("formErr").textContent="Pick a date."; $("date").focus(); return; }
+  const e = {type:formType, amount:Math.round(amt*100)/100, category:cat, date, note:$("note").value.trim(), method:$("method").value};
+  busy=true; $("submitBtn").disabled=true; setSave("Saving…"); $("formErr").textContent="";
+  try{
+    let saved;
+    if(editing){
+      const {data:row,error} = await sb.from("entries").update(toRow(e)).eq("id",editing.id).select().single();
+      if(error) throw error;
+      saved = fromRow(row);
+      entries = entries.map(x => x.id===saved.id ? saved : x);
+    } else {
+      const {data:row,error} = await sb.from("entries").insert(toRow(e)).select().single();
+      if(error) throw error;
+      saved = fromRow(row);
+      entries.push(saved);
+    }
+    const wasEdit = !!editing, keep = formType;
+    viewMonth = monthKey(saved.date);
+    resetForm(); setType(keep); render();
+    setSave("All changes saved");
+    toast(wasEdit ? "Entry updated" : (saved.type==="in"?"Income added":"Expense added"));
+  }catch(err){
+    $("formErr").textContent = "Not saved. "+friendly(err);
+    setSave("Not saved");
+  }finally{ busy=false; $("submitBtn").disabled=false; }
+});
+
+async function removeEntry(e){
+  setSave("Saving…");
+  const {error} = await sb.from("entries").delete().eq("id",e.id);
+  if(error){ toast("Couldn’t delete. "+friendly(error)); setSave("Not saved"); return; }
+  entries = entries.filter(x=>x.id!==e.id);
+  if(editing && editing.id===e.id) resetForm();
+  render(); setSave("All changes saved"); toast("Entry deleted");
+}
+
+// ---------- controls ----------
+$("prevM").onclick=()=>{ viewMonth=addMonths(viewMonth,-1); if(!editing) resetForm(); render(); };
+$("nextM").onclick=()=>{ viewMonth=addMonths(viewMonth,1); if(!editing) resetForm(); render(); };
+$("filterType").onchange=render;
+let st; $("search").addEventListener("input",()=>{ clearTimeout(st); st=setTimeout(render,150); });
+$("currency").onchange=async ()=>{
+  currency=$("currency").value; render();
+  const {error} = await sb.from("settings").upsert({user_id:user.id,currency,updated_at:new Date().toISOString()});
+  if(error) toast("Currency not saved. "+friendly(error));
+};
+
+$("exportBtn").onclick = ()=>{
+  if(!entries.length){ toast("Nothing to export yet. Add an entry first."); return; }
+  const rows = [["Date","Type","Category","Amount","Currency","Paid via","Note"]];
+  for(const e of entries.slice().sort((a,b)=>a.date.localeCompare(b.date))) rows.push([e.date, e.type==="in"?"Income":"Expense", e.category, e.amount, currency, e.method||"", e.note||""]);
+  const csv = rows.map(r=>r.map(v=>{ v=String(v); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }).join(",")).join("\n");
+  const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob(["﻿"+csv],{type:"text/csv"}));
+  a.download="cashbook-"+todayStr()+".csv"; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+};
+
+// ---------- import ----------
+function parseCSV(text){
+  const rows=[]; let row=[], f="", q=false;
+  text = text.replace(/^﻿/,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){f+='"';i++;} else q=false; } else f+=c; }
+    else if(c==='"') q=true;
+    else if(c===','){ row.push(f); f=""; }
+    else if(c==='\n'||c==='\r'){ if(c==='\r'&&text[i+1]==='\n') i++; row.push(f); rows.push(row); row=[]; f=""; }
+    else f+=c;
+  }
+  if(f!==""||row.length){ row.push(f); rows.push(row); }
+  return rows.filter(r=>r.some(v=>v.trim()!==""));
+}
+function parseDate(s){
+  s=String(s||"").trim(); let m;
+  if(m=s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/)) return m[1]+"-"+pad(+m[2])+"-"+pad(+m[3]);
+  if(m=s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/)){
+    let d=+m[1], mo=+m[2], y=+m[3]; if(y<100) y+=2000;
+    if(mo>12 && d<=12){ const t=d; d=mo; mo=t; }
+    if(mo<1||mo>12||d<1||d>31) return null;
+    return y+"-"+pad(mo)+"-"+pad(d);
+  }
+  const t=Date.parse(s); if(!isNaN(t)){ const x=new Date(t); return x.getFullYear()+"-"+pad(x.getMonth()+1)+"-"+pad(x.getDate()); }
+  return null;
+}
+const sig = e => [e.date,e.type,e.category.toLowerCase(),Number(e.amount).toFixed(2),(e.note||"").toLowerCase()].join("|");
+let pending = null;
+function prepareImport(text){
+  const rows=parseCSV(text);
+  if(rows.length<2) return {error:"This file has no entries. It needs a header row and at least one entry."};
+  const h=rows[0].map(x=>x.trim().toLowerCase());
+  const col = (...names) => h.findIndex(x=>names.some(n=>x===n||x.includes(n)));
+  const ci={date:col("date"),type:col("type"),cat:col("category"),amt:col("amount"),method:col("paid via","method","mode","payment"),note:col("note","description","details","remarks")};
+  if(ci.date<0||ci.amt<0) return {error:"Couldn’t find Date and Amount columns. Use a file exported from Cashbook, or a CSV with Date, Type, Category, Amount and Note columns."};
+  const existing=new Set(entries.map(sig));
+  const out=[], seen=new Set(); let bad=0, dup=0;
+  for(const r of rows.slice(1)){
+    const date=parseDate(r[ci.date]);
+    const amt=parseFloat(String(r[ci.amt]||"").replace(/[^\d.\-]/g,""));
+    if(!date||!isFinite(amt)||amt===0){ bad++; continue; }
+    const tRaw = ci.type>=0 ? String(r[ci.type]||"").trim().toLowerCase() : "";
+    const type = /^(in|income|credit|cr|received|deposit)/.test(tRaw) ? "in" : /^(out|expense|debit|dr|spent|paid|withdraw)/.test(tRaw) ? "out" : (amt<0?"out":"in");
+    const e={type,amount:Math.round(Math.abs(amt)*100)/100,category:((ci.cat>=0&&String(r[ci.cat]||"").trim())||"Other").slice(0,80),date,
+      note:ci.note>=0?String(r[ci.note]||"").trim():"",method:ci.method>=0?String(r[ci.method]||"").trim():""};
+    const s=sig(e);
+    if(existing.has(s)||seen.has(s)){ dup++; continue; }
+    seen.add(s); out.push(e);
+  }
+  return {entries:out,bad,dup};
+}
+$("importBtn").onclick=()=>{ $("importFile").value=""; $("importFile").click(); };
+$("importFile").addEventListener("change", async ()=>{
+  const file=$("importFile").files[0]; if(!file) return;
+  let text=""; try{ text=await file.text(); }catch(e){ toast("Couldn’t read that file."); return; }
+  const res=prepareImport(text), msg=$("importMsg");
+  $("importPanel").hidden=false;
+  if(res.error){ pending=null; msg.textContent=res.error; $("importGo").hidden=true; return; }
+  const n=res.entries.length, extra=[];
+  if(res.dup) extra.push(res.dup+" already in Cashbook, skipped");
+  if(res.bad) extra.push(res.bad+(res.bad===1?" row":" rows")+" without a valid date or amount, skipped");
+  if(!n){ pending=null; msg.textContent="Nothing new to import from "+file.name+(extra.length?" ("+extra.join("; ")+")":"")+"."; $("importGo").hidden=true; return; }
+  pending=res.entries;
+  const ins=pending.filter(e=>e.type==="in").length;
+  msg.textContent="Ready to import "+n+" entr"+(n===1?"y":"ies")+" from "+file.name+" ("+ins+" income, "+(n-ins)+" expense)"+(extra.length?". "+extra.join("; "):"")+".";
+  $("importGo").hidden=false;
+});
+$("importCancel").onclick=()=>{ pending=null; $("importPanel").hidden=true; };
+$("importGo").onclick=async ()=>{
+  if(!pending || busy) return;
+  busy=true; $("importGo").disabled=true;
+  const list=pending; let done=0;
+  try{
+    for(let i=0;i<list.length;i+=500){
+      $("importMsg").textContent="Importing… "+done+" of "+list.length;
+      const {data:rows,error} = await sb.from("entries").insert(list.slice(i,i+500).map(toRow)).select();
+      if(error) throw error;
+      entries.push(...rows.map(fromRow)); done+=rows.length;
+    }
+    pending=null; $("importPanel").hidden=true;
+    const latest=list.reduce((a,e)=>e.date>a?e.date:a,"");
+    if(latest) viewMonth=monthKey(latest);
+    toast("Imported "+done+" entr"+(done===1?"y":"ies"));
+  }catch(err){
+    $("importMsg").textContent="Import stopped after "+done+" of "+list.length+" entries. "+friendly(err)+" Choose the same file again to import the rest; entries already added will be skipped.";
+    pending=null; $("importGo").hidden=true;
+  }finally{
+    busy=false; $("importGo").disabled=false;
+    resetForm(); render(); setSave("All changes saved");
+  }
+};
+
+// ---------- auth ----------
+let authMode="signin";
+function setAuthMode(m){
+  authMode=m;
+  $("modeSignIn").setAttribute("aria-pressed", m==="signin");
+  $("modeSignUp").setAttribute("aria-pressed", m==="signup");
+  $("authSubmit").textContent = m==="signin" ? "Sign in" : "Create account";
+  $("authPass").autocomplete = m==="signin" ? "current-password" : "new-password";
+  $("forgotBtn").hidden = m!=="signin";
+  $("authErr").textContent=""; $("authOk").textContent="";
+}
+$("modeSignIn").onclick=()=>setAuthMode("signin");
+$("modeSignUp").onclick=()=>setAuthMode("signup");
+const redirectTo = () => location.origin + location.pathname;
+
+$("authForm").addEventListener("submit", async ev=>{
+  ev.preventDefault();
+  const email=$("authEmail").value.trim(), password=$("authPass").value;
+  $("authErr").textContent=""; $("authOk").textContent="";
+  if(!/^\S+@\S+\.\S+$/.test(email)){ $("authErr").textContent="Enter a valid email address."; return; }
+  if(password.length<6){ $("authErr").textContent="Password must be at least 6 characters."; return; }
+  $("authSubmit").disabled=true;
+  try{
+    if(authMode==="signin"){
+      const {error} = await sb.auth.signInWithPassword({email,password});
+      if(error){
+        $("authErr").textContent = /confirm/i.test(error.message) ? "Confirm your email first. Check your inbox for the link from Supabase." : /invalid/i.test(error.message) ? "Wrong email or password." : friendly(error);
+      }
+    } else {
+      const {data:d,error} = await sb.auth.signUp({email,password,options:{emailRedirectTo:redirectTo()}});
+      if(error) $("authErr").textContent = /not allowed|disabled/i.test(error.message) ? "New accounts are turned off for this Cashbook." : friendly(error);
+      else if(!d.session) { setAuthMode("signin"); $("authOk").textContent="Account created. Check your email and click the confirmation link, then sign in here."; }
+    }
+  } finally { $("authSubmit").disabled=false; }
+});
+$("forgotBtn").onclick=async ()=>{
+  const email=$("authEmail").value.trim();
+  $("authErr").textContent=""; $("authOk").textContent="";
+  if(!/^\S+@\S+\.\S+$/.test(email)){ $("authErr").textContent="Type your email above first, then tap Forgot password."; return; }
+  const {error} = await sb.auth.resetPasswordForEmail(email,{redirectTo:redirectTo()});
+  if(error) $("authErr").textContent=friendly(error);
+  else $("authOk").textContent="If that email has an account, a reset link is on its way.";
+};
+$("recoveryForm").addEventListener("submit", async ev=>{
+  ev.preventDefault();
+  const p=$("newPass").value;
+  if(p.length<6){ $("recErr").textContent="Password must be at least 6 characters."; return; }
+  $("recSubmit").disabled=true;
+  const {error} = await sb.auth.updateUser({password:p});
+  $("recSubmit").disabled=false;
+  if(error){ $("recErr").textContent=friendly(error); return; }
+  history.replaceState(null,"",location.pathname);
+  toast("Password updated");
+  recovering=false;
+  const {data:{session}} = await sb.auth.getSession();
+  enter(session);
+});
+$("signOutBtn").onclick=async ()=>{ await sb.auth.signOut(); };
+
+let recovering=false;
+function enter(session){
+  if(recovering) return;
+  if(!session){ user=null; entries=[]; setAuthMode("signin"); show("authView"); return; }
+  const same = user && user.id===session.user.id;
+  user = session.user;
+  $("userEmail").textContent = user.email || "";
+  show("appView");
+  if(!same) loadAll();
+}
+
+let rt; window.addEventListener("resize", ()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(user) render(); },200); });
+document.addEventListener("visibilitychange", ()=>{
+  if(document.visibilityState==="visible" && user && !busy && Date.now()-lastLoad>30000) loadAll();
+});
+
+// ---------- boot ----------
+(function boot(){
+  const cfg = window.CASHBOOK_CONFIG || {};
+  if(!cfg.SUPABASE_URL || /PASTE/.test(cfg.SUPABASE_URL) || !cfg.SUPABASE_ANON_KEY || /PASTE/.test(cfg.SUPABASE_ANON_KEY)){ show("setupView"); return; }
+  if(!window.supabase || !window.supabase.createClient){
+    $("setupTitle").textContent="Couldn’t load Cashbook";
+    $("setupMsg").textContent="The Supabase library didn’t load. Check your internet connection and reload the page.";
+    show("setupView"); return;
+  }
+  sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
+  sb.auth.onAuthStateChange((event, session)=>{
+    // defer: Supabase recommends not awaiting other calls inside this callback
+    setTimeout(()=>{
+      if(event==="PASSWORD_RECOVERY"){ recovering=true; show("recoveryView"); $("newPass").focus(); return; }
+      if(event==="USER_UPDATED"){ recovering=false; }
+      if(event==="TOKEN_REFRESHED") return;
+      enter(session);
+    },0);
+  });
+})();
+})();
+</script>
+</body>
+</html>
