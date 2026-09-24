@@ -1,20 +1,21 @@
 // Cashbook service worker: makes the app installable and lets it open without internet.
 // Your entries always come from Supabase; this file never stores them.
-const VERSION = "cashbook-v1";
+const VERSION = "cashbook-v2";
 const SHELL = [
   "/",
   "/manifest.webmanifest",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
-  "/icons/apple-touch-icon.png",
-  "/icons/favicon-64.png"
+  "/icon-192.png",
+  "/icon-512.png",
+  "/apple-touch-icon.png",
+  "/favicon-64.png"
 ];
 const LIB = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js";
 
 self.addEventListener("install", event => {
   event.waitUntil(
     caches.open(VERSION)
-      .then(c => c.addAll(SHELL).then(() => c.add(LIB).catch(() => {}))) // library is also saved on first use
+      // Save each file on its own, so one missing file never blocks the app from installing.
+      .then(c => Promise.all([...SHELL, LIB].map(u => c.add(u).catch(() => {}))))
       .then(() => self.skipWaiting())
   );
 });
