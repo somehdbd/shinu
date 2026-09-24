@@ -4,6 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Cashbook</title>
+<meta name="description" content="Track your income and expenses on every device.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="64x64" href="/icons/favicon-64.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="theme-color" content="#F3F5F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#111614" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Cashbook">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -154,6 +164,7 @@ button:disabled{opacity:.6;cursor:default}
 .authwrap p{margin:0;color:var(--muted)}
 .center{text-align:center}
 .loading{color:var(--muted);text-align:center;margin-top:20vh}
+.install{border-color:var(--accent);color:var(--accent);font-weight:600}
 code{font-family:var(--mono);font-size:13px;background:var(--sunk);padding:1px 5px;border-radius:4px}
 </style>
 </head>
@@ -188,6 +199,10 @@ code{font-family:var(--mono);font-size:13px;background:var(--sunk);padding:1px 5
     <button type="submit" class="primary" id="authSubmit">Sign in</button>
     <button type="button" class="linkish" id="forgotBtn" style="align-self:center">Forgot password?</button>
   </form>
+  <button id="installBtn2" class="ghost install" type="button" hidden style="align-self:center">Install Cashbook on this device</button>
+  <div id="iosHint2" class="notice" hidden>
+    <span>To install on iPhone or iPad: tap the <b>Share</b> button in Safari, then <b>Add to Home Screen</b>.</span>
+  </div>
 </div>
 
 <!-- Set a new password (after reset link) -->
@@ -229,6 +244,13 @@ code{font-family:var(--mono);font-size:13px;background:var(--sunk);padding:1px 5
     <button id="importBtn" class="ghost" type="button">Import CSV</button>
     <input id="importFile" type="file" accept=".csv,text/csv" hidden>
     <button id="exportBtn" class="ghost" type="button">Export CSV</button>
+    <button id="installBtn" class="ghost install" type="button" hidden>Install app</button>
+  </div>
+
+  <div id="offlineNote" class="notice bad" hidden><span><b>You’re offline.</b> You can look through your entries, but new changes won’t save until you’re back online.</span></div>
+  <div id="iosHint" class="notice" hidden>
+    <span>To install on iPhone or iPad: tap the <b>Share</b> button <span aria-hidden="true">(□↑)</span> in Safari, then <b>Add to Home Screen</b>.</span>
+    <button class="ghost" type="button" data-close-hint style="margin-left:auto">Got it</button>
   </div>
 
   <div id="importPanel" class="notice" hidden>
@@ -771,12 +793,42 @@ function enter(session){
   $("userEmail").textContent = user.email || "";
   show("appView");
   if(!same) loadAll();
+  if(location.hash === "#add"){ history.replaceState(null,"",location.pathname); setTimeout(()=>{ $("txForm").scrollIntoView({block:"start"}); $("amount").focus(); }, 300); }
 }
 
 let rt; window.addEventListener("resize", ()=>{ clearTimeout(rt); rt=setTimeout(()=>{ if(user) render(); },200); });
 document.addEventListener("visibilitychange", ()=>{
   if(document.visibilityState==="visible" && user && !busy && Date.now()-lastLoad>30000) loadAll();
 });
+
+// ---------- installable app (PWA) ----------
+const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+let installEvt = null;
+const installBtns = [$("installBtn"), $("installBtn2")];
+function showInstall(on){ installBtns.forEach(b => b.hidden = !on); }
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvt = e; if(!isStandalone()) showInstall(true); });
+window.addEventListener("appinstalled", () => { installEvt = null; showInstall(false); toast("Cashbook installed"); });
+if(isIOS && !isStandalone()) showInstall(true);
+installBtns.forEach(b => b.addEventListener("click", async () => {
+  if(installEvt){
+    installEvt.prompt();
+    try{ await installEvt.userChoice; }catch(e){}
+    installEvt = null; showInstall(false);
+  } else if(isIOS){
+    $("iosHint").hidden = false; $("iosHint2").hidden = false;
+  }
+}));
+document.querySelectorAll("[data-close-hint]").forEach(b => b.onclick = () => { $("iosHint").hidden = true; });
+
+function updateOnline(){ $("offlineNote").hidden = navigator.onLine; }
+window.addEventListener("online", () => { updateOnline(); if(user && !busy) loadAll(); });
+window.addEventListener("offline", updateOnline);
+updateOnline();
+
+if("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")){
+  window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(()=>{}); });
+}
 
 // ---------- boot ----------
 (function boot(){
