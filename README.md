@@ -20,7 +20,7 @@ Keep the quotes. Save the file.
 
 ## 3. Put it online (Vercel)
 1. Create a free account at https://github.com, click **New repository**, name it `cashbook`, and create it.
-2. On the new repository page, click **uploading an existing file**. Drag in **everything** from this folder: `index.html`, `manifest.webmanifest`, `sw.js`, `vercel.json` and the whole `icons` folder (drag the folder itself so the files stay inside `icons/`). Click **Commit changes**. (`README.md` and `supabase-setup.sql` are optional.)
+2. On the new repository page, click **uploading an existing file**. Select **all** these files at once and drop them in: `index.html`, `manifest.webmanifest`, `sw.js`, `vercel.json`, `icon-192.png`, `icon-512.png`, `maskable-512.png`, `apple-touch-icon.png`, `favicon-64.png`. Click **Commit changes**. (`README.md` and `supabase-setup.sql` are optional.) All files sit at the top level; there are no folders.
 3. Go to https://vercel.com, sign up with your GitHub account, click **Add New → Project**, pick the `cashbook` repository and click **Deploy**. Leave all settings as they are.
 4. After about a minute you get an address like `cashbook-xyz.vercel.app`.
 
